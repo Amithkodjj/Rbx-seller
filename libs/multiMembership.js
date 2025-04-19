@@ -1,13 +1,31 @@
-// Get and cache bot ID
-function getBotId(callback) {
-  let botId = Bot.getProperty("cached_bot_id");
-  if (botId) return callback(botId);
+// Check if bot is admin or not added in a channel
+function isBotAdminInChannel(channel, callback) {
+  Api.getChatMember({
+    chat_id: channel,
+    user_id: Bot.getProperty("my_bot_id"),
+    on_result: function(res) {
+      let status = res.status;
+      if (status === "administrator" || status === "creator") {
+        callback({ ok: true });
+      } else {
+        callback({ ok: false, reason: "Bot is not admin in " + channel });
+      }
+    },
+    on_error: function() {
+      callback({ ok: false, reason: "Bot is not added to " + channel });
+    }
+  });
+}
+
+// Get bot ID from Api.getMe() and save it once
+function ensureBotId(callback) {
+  let id = Bot.getProperty("my_bot_id");
+  if (id) return callback(id);
 
   Api.getMe({
     on_result: function(res) {
-      botId = res.id;
-      Bot.setProperty("cached_bot_id", botId, "integer");
-      callback(botId);
+      Bot.setProperty("my_bot_id", res.id, "integer");
+      callback(res.id);
     },
     on_error: function() {
       callback(null);
@@ -15,32 +33,13 @@ function getBotId(callback) {
   });
 }
 
-// Improved: Check if a user is admin or give specific error if not added
-function isAdminInChannel(channel, userId, callback) {
-  Api.getChatMember({
-    chat_id: channel,
-    user_id: userId,
-    on_result: function(res) {
-      const status = res.status;
-      if (status === "administrator" || status === "creator") {
-        callback({ ok: true });
-      } else {
-        callback({ ok: false, reason: "Bot is not admin in " + channel });
-      }
-    },
-    on_error: function(err) {
-      callback({ ok: false, reason: "Bot is not added to " + channel });
-    }
-  });
-}
-
-// Check if user has joined a channel
+// Check if user joined one channel
 function isUserInChannel(channel, userId, callback) {
   Api.getChatMember({
     chat_id: channel,
     user_id: userId,
     on_result: function(res) {
-      const status = res.status;
+      let status = res.status;
       callback(["member", "administrator", "creator"].includes(status));
     },
     on_error: function() {
@@ -49,19 +48,17 @@ function isUserInChannel(channel, userId, callback) {
   });
 }
 
-// Bot admin check for all channels
+// Check bot admin status in all channels
 function isBotAdminInAll(channels, callback) {
-  getBotId(function(botId) {
-    if (!botId) return callback({ ok: false, reason: "Failed to get bot ID" });
+  ensureBotId(function(botId) {
+    if (!botId) return callback({ ok: false, reason: "Cannot get bot ID" });
 
     let i = 0;
     function next() {
       if (i >= channels.length) return callback({ ok: true });
 
-      isAdminInChannel(channels[i], botId, function(result) {
-        if (!result.ok) {
-          return callback({ ok: false, reason: result.reason });
-        }
+      isBotAdminInChannel(channels[i], function(result) {
+        if (!result.ok) return callback({ ok: false, reason: result.reason });
         i++;
         next();
       });
@@ -71,7 +68,7 @@ function isBotAdminInAll(channels, callback) {
   });
 }
 
-// User membership check
+// Check user membership in all channels
 function isUserInAll(channels, userId, callback) {
   let i = 0;
   function next() {
@@ -87,7 +84,7 @@ function isUserInAll(channels, userId, callback) {
   next();
 }
 
-// Full validation
+// Final validation function
 function validate(channels, userId, callback) {
   isBotAdminInAll(channels, function(botCheck) {
     if (!botCheck.ok) {
@@ -115,7 +112,7 @@ function validate(channels, userId, callback) {
   });
 }
 
-// Publish
+// Export it
 publish({
   validate: validate
 });
