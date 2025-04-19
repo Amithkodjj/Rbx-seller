@@ -1,5 +1,5 @@
-# Cloned bot: RobloxProductsBot - chat bot
-It is repository for chat bot: [@Cloned bot: RobloxProductsBot](https://t.me/Cloned bot: RobloxProductsBot)
+# ClazoidBot - chat bot
+It is repository for chat bot: [@ClazoidBot](https://t.me/ClazoidBot)
 
 ## What it is?
 This repository can be imported to [Bots.Business](https://bots.business) as a worked chat bot.
